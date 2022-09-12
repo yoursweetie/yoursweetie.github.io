@@ -4,6 +4,31 @@
   
   
   <entry>
+    <title>如何理解内存</title>
+    <link href="/2022/09/12/%E5%A6%82%E4%BD%95%E7%90%86%E8%A7%A3%E5%86%85%E5%AD%98/"/>
+    <url>/2022/09/12/%E5%A6%82%E4%BD%95%E7%90%86%E8%A7%A3%E5%86%85%E5%AD%98/</url>
+    
+    <content type="html"><![CDATA[<h1 id="如何理解内存"><a href="#如何理解内存" class="headerlink" title="如何理解内存"></a>如何理解内存</h1><p>首先我们要知道,计算机的工作就是计算. 最重要的组件是cpu——计算机的运算单元,另外,需要计算的数据从哪里来?<br>那就是从内存(memory)中来. 当一个程序运行时, 以这样的一个简单程序为例：</p><figure class="highlight cpp"><table><tr><td class="gutter hljs"><div class="hljs code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></div></td><td class="code"><div class="hljs code-wrapper"><pre><code class="hljs cpp"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;iostream&gt;</span></span><br><span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>&#123;<br>    <span class="hljs-keyword">int</span> a = <span class="hljs-number">1</span>, b = <span class="hljs-number">2</span>;<br>    <span class="hljs-keyword">int</span> c = a + b;<br><br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br>&#125;<br></code></pre></div></td></tr></table></figure><ul><li>cpu运行到主函数中的初始化语句<code>int a = 1, b = 2</code>时, 首先在内存中的两块各32bits(我们知道一般int类型的变量大小为32bits)的空间上存放1和2,<br>编译器自己知道这两块空间分别叫做a和b, 大小是32位</li><li>然后运行到<code>int c = a + b</code>时, 也在内存上开辟一块临时的空间, 标记为<code>c</code>, 大小为32bits,</li><li>然后向内存询问地址为a和b的内存空间上的数据是什么? 需要它们进行计算.  </li></ul><p><strong>cpu首先将a和b的地址通过地址总线传递给内存, 内存在地址总线上读到a的地址后, 将这块地址上存放的数据(1)放到数据总线上, cpu去读数据总线上的数据, 那么就得到了,a的数据, b的数据获取同理.</strong>  </p><h2 id="再看一下我们的汇编代码加深理解"><a href="#再看一下我们的汇编代码加深理解" class="headerlink" title="再看一下我们的汇编代码加深理解  "></a>再看一下我们的汇编代码加深理解  </h2><figure class="highlight plaintext"><table><tr><td class="gutter hljs"><div class="hljs code-wrapper"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></div></td><td class="code"><div class="hljs code-wrapper"><pre><code class="hljs assembly">0000000000001149 &lt;main&gt;:<br>    1149:55                   push   rbp<br>    114a:48 89 e5             mov    rbp,rsp<br>    114d:c7 45 f4 01 00 00 00 mov    DWORD PTR [rbp-0xc],0x1  &quot;int a = 1; 把1放到a的内存空间中<br>    1154:c7 45 f8 02 00 00 00 mov    DWORD PTR [rbp-0x8],0x2  &quot;int b = 1; 把2放到b的内存中间中<br>    115b:8b 55 f4             mov    edx,DWORD PTR [rbp-0xc]  &quot;把a的值从内存中读到cpu的edx寄存器中, 准备计算<br>    115e:8b 45 f8             mov    eax,DWORD PTR [rbp-0x8]  &quot;把b的值从内存中读到cpu的eax寄存器中, 准备计算<br>    1161:01 d0                add    eax,edx                  &quot;a + b;         计算a + b, 将结果存放到寄存器eax中<br>    1163:89 45 fc             mov    DWORD PTR [rbp-0x4],eax  &quot;int c = a + b; 将eax中的值存放到c的内存空间中<br>    1166:b8 00 00 00 00       mov    eax,0x0<br>    116b:5d                   pop    rbp<br>    116c:c3                   ret<br></code></pre></div></td></tr></table></figure><p>来解释一下<code>mov DWORD PTR [rbp-0xc],0x1</code>:  </p><ul><li>[rbp-0xc]是一个数值, 表示的是内存中的某一块内存的起始地址(比如说是0x7fffffffdc94)  </li><li>dword是double word的意思, 双字, intel格式的汇编语言是将一个word表示2个bytes, double word就是4个bytes,<br>那么就是32bits(这里知道了大小)</li><li>ptr是pointer, 指针的意思.  </li></ul><p><strong>总而言之, 将1存放到以[rpc-0xc]这块内存地址开头的, 总长度为32bits的内存空间中</strong><br>实际上a在内存中是从0x7fffffffdc94～0x7fffffffdc98 (<em>左闭右开的区间</em>) 这一块连续的32bits大小的空间, 这里是4个间隔, 每一个间隔表示一个字节byte)  </p><blockquote><p>你问到为什么要将8个256-bit的memory连起来?  </p></blockquote><p>这样传一个地址, 那么就能一次性读8bit也就是1byte的数据, 至于为什么不只读1bit或者大一些32bits的数据, 这是当时的历史条件决定的.<br>当时也有6bits这样的大小, 但是因为ascii码用8bits来表示正好, 那么8bits就流行开来, 不管是内存还是磁盘, 都以8bits作为最小的寻址单位<br><a href="https://www.zhihu.com/question/367812743">这里</a>有一些介绍</p>]]></content>
+    
+    
+    <categories>
+      
+      <category>基础知识</category>
+      
+    </categories>
+    
+    
+    <tags>
+      
+      <tag>cs</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>构造函数和析构函数</title>
     <link href="/2021/10/06/constructor%20and%20destructor/"/>
     <url>/2021/10/06/constructor%20and%20destructor/</url>
